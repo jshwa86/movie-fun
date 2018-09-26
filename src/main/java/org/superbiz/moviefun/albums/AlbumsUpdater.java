@@ -47,35 +47,39 @@ public class AlbumsUpdater {
             return;
         }
 
-        List<Album> albumsToHave = readFromCsv(objectReader, maybeBlob.get().inputStream);
-        List<Album> albumsWeHave = albumsBean.getAlbums();
+        List<Album> albumsFromCsv = readFromCsv(objectReader, maybeBlob.get().inputStream);
+        List<Album> albumsFromDB = albumsBean.getAlbums();
 
-        createNewAlbums(albumsToHave, albumsWeHave);
-        deleteOldAlbums(albumsToHave, albumsWeHave);
-        updateExistingAlbums(albumsToHave, albumsWeHave);
+        createNewAlbums(albumsFromCsv, albumsFromDB);
+        deleteOldAlbums(albumsFromCsv, albumsFromDB);
+        updateExistingAlbums(albumsFromCsv, albumsFromDB);
     }
 
 
-    private void createNewAlbums(List<Album> albumsToHave, List<Album> albumsWeHave) {
-        Stream<Album> albumsToCreate = albumsToHave
-            .stream()
-            .filter(album -> albumsWeHave.stream().noneMatch(album::isEquivalent));
+    private void createNewAlbums(List<Album> albumsFromCsv, List<Album> albumsFromDB) {
+        Stream<Album> albumsToCreate = albumsFromCsv
+            .stream() //All albums from the csv file
+            .filter( //Only retrieve albums from csv that match this -->
+                    album -> albumsFromDB.stream() //ALL albums from the database
+                            .noneMatch( //filter again on this ->
+                                    album::isEquivalent //album from CSV is equivalent to album from DB
+                            ));
 
         albumsToCreate.forEach(albumsBean::addAlbum);
     }
 
-    private void deleteOldAlbums(List<Album> albumsToHave, List<Album> albumsWeHave) {
-        Stream<Album> albumsToDelete = albumsWeHave
+    private void deleteOldAlbums(List<Album> albumsFromCsv, List<Album> albumsFromDB) {
+        Stream<Album> albumsToDelete = albumsFromDB
             .stream()
-            .filter(album -> albumsToHave.stream().noneMatch(album::isEquivalent));
+            .filter(album -> albumsFromCsv.stream().noneMatch(album::isEquivalent));
 
         albumsToDelete.forEach(albumsBean::deleteAlbum);
     }
 
-    private void updateExistingAlbums(List<Album> albumsToHave, List<Album> albumsWeHave) {
-        Stream<Album> albumsToUpdate = albumsToHave
+    private void updateExistingAlbums(List<Album> albumsFromCsv, List<Album> albumsFromDB) {
+        Stream<Album> albumsToUpdate = albumsFromCsv
             .stream()
-            .map(album -> addIdToAlbumIfExists(albumsWeHave, album))
+            .map(album -> addIdToAlbumIfExists(albumsFromDB, album))
             .filter(Album::hasId);
 
         albumsToUpdate.forEach(albumsBean::updateAlbum);
